@@ -10,18 +10,23 @@
   <body>
     <h1>captureStream to MediaRecorder example</h1>
 
-    <p>MP4 source (playable):</p>
-    <p><video controls class=sample src="VID_20160402_215911.mp4" width=320 height=180></video></p>
-
-    <p>MP4 source (used in transcode):</p>
+    <p>MP4 source (<a href="VID_20160402_215911.mp4">download source</a>):</p>
     <p><video class=src src="VID_20160402_215911.mp4" width=320 height=180></video></p>
 
-    <p>Generated WebM (playable on completion):</p>
+    <p>Generated WebM (when ready; <a href="#" class=download>download transcode</a>):</p>
     <p><video controls class=dst width=320 height=180></video></p>
 
     <pre></pre>
   </body>
 <script>
+
+// current issues:
+// * on Firefox 45, if we ask for vp9+opus we get vp8+Vorbis
+//   (on FF 47 asking for any codecs results in error!)
+// * on Firefox 45, the recording keeps changing resolutions;
+//   the result doesn't play in a video element!
+//   (on FF 47 it plays back ok)
+// * chrome lacks captureStream() support on video
 
 // define variables
 
@@ -29,6 +34,7 @@ var pre = document.querySelector('pre');
 var myScript = document.querySelector('script');
 var src = document.querySelector('.src');
 var dst = document.querySelector('.dst');
+var download = document.querySelector('.download');
 
 // Use captureStream on the src video, pipe it through a MediaRecorder,
 // then display the final blob into another video element.
@@ -47,7 +53,7 @@ function transcode() {
   console.log('captureStream supported');
 
   var mediaRecorder = new MediaRecorder(stream, {
-    mimeType: 'video/webm, codecs=vp9,opus'
+    mimeType: 'video/webm'
   });
   var chunks = [], done = false;
   mediaRecorder.addEventListener('dataavailable', function(event) {
@@ -59,6 +65,7 @@ function transcode() {
       var blob = new Blob(chunks),
         url = URL.createObjectURL(blob);
       dst.src = url;
+      download.href = url;
     }
   });
 
