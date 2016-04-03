@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+
+    <title>captureStream to MediaRecorder example</title>
+  </head>
+
+  <body>
+    <h1>captureStream to MediaRecorder example</h1>
+
+    <p>MP4 source (<a href="VID_20160402_215911.mp4" download>download source</a>):</p>
+    <p><video class=src src="VID_20160402_215911.mp4" width=320 height=180></video></p>
+
+    <p>Generated WebM (when ready; <a href="#" class=download download>download transcode</a>):</p>
+    <p><video controls class=dst width=320 height=180></video></p>
+
+    <pre></pre>
+
+    <p><a href="https://github.com/brion/browser-transcode-test">github link</a></p>
+  </body>
+<script>
+
+// current issues:
+// * sometimes get an InvalidStateError
+// * on Firefox 45, the recording keeps changing resolutions;
+//   the result doesn't play in a video element!
+//   (on FF 47 it plays back ok)
+// * on Firefox 45 and 47 the result is very choppy;
+//   recording is nowhere near frame-accurate
+// * chrome lacks captureStream() support on video
+// * on Firefox 45, if we ask for vp9+opus we get vp8+Vorbis
+//   (on FF 47 asking for any codecs results in error!)
+
+// define variables
+
+var pre = document.querySelector('pre');
+var myScript = document.querySelector('script');
+var src = document.querySelector('.src');
+var dst = document.querySelector('.dst');
+var download = document.querySelector('.download');
+
+// Use captureStream on the src video, pipe it through a MediaRecorder,
+// then display the final blob into another video element.
+
+function transcode() {
+  var stream;
+
+  if (src.captureStreamUntilEnded) {
+    stream = src.captureStreamUntilEnded();
+  } else if (src.mozCaptureStreamUntilEnded) {
+    stream = src.mozCaptureStreamUntilEnded();
+  } else {
+    console.log('no captureStream or mozCaptureStreamUntilEnded support');
+    return;
+  }
+  console.log('captureStreamUntilEnded supported');
+
+  var mediaRecorder = new MediaRecorder(stream, {
+    mimeType: 'video/webm',
+    videoBitsPerSecond: 5000000
+  });
+  var chunks = [], done = false;
+  mediaRecorder.addEventListener('dataavailable', function(event) {
+    console.log('chunk!', event.data);
+    chunks.push(event.data);
+
+    if (done) {
+      console.log('done!');
+      var blob = new Blob(chunks),
+        url = URL.createObjectURL(blob);
+      dst.src = url;
+      download.href = url;
+    }
+  });
+
+  src.play();
+  src.addEventListener('play', function() {
+    mediaRecorder.start();
+  });
+  src.addEventListener('ended', function() {
+    done = true;
+    mediaRecorder.stop();
+  });
+}
+
+transcode();
+
+// dump script to pre element
+
+pre.innerHTML = myScript.innerHTML;
+  </script>
+</html>
