@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+
+    <title>captureStream to MediaRecorder example</title>
+  </head>
+
+  <body>
+    <h1>captureStream to MediaRecorder example</h1>
+
+    <p>MP4 source (playable):</p>
+    <p><video controls class=sample src="VID_20160402_215911.mp4" width=320 height=180></video></p>
+
+    <p>MP4 source (used in transcode):</p>
+    <p><video class=src src="VID_20160402_215911.mp4" width=320 height=180></video></p>
+
+    <p>Generated WebM (playable on completion):</p>
+    <p><video controls class=dst width=320 height=180></video></p>
+
+    <pre></pre>
+  </body>
+<script>
+
+// define variables
+
+var pre = document.querySelector('pre');
+var myScript = document.querySelector('script');
+var src = document.querySelector('.src');
+var dst = document.querySelector('.dst');
+
+// Use captureStream on the src video, pipe it through a MediaRecorder,
+// then display the final blob into another video element.
+
+function transcode() {
+  var stream;
+
+  if (src.captureStream) {
+    stream = src.captureStream();
+  } else if (src.mozCaptureStream) {
+    stream = src.mozCaptureStream();
+  } else {
+    console.log('no captureStream or mozCaptureStream support');
+    return;
+  }
+  console.log('captureStream supported');
+
+  var mediaRecorder = new MediaRecorder(stream, {
+    mimeType: 'video/webm, codecs=vp9,opus'
+  });
+  var chunks = [], done = false;
+  mediaRecorder.addEventListener('dataavailable', function(event) {
+    console.log('chunk!', event.data);
+    chunks.push(event.data);
+
+    if (done) {
+      console.log('done!');
+      var blob = new Blob(chunks),
+        url = URL.createObjectURL(blob);
+      dst.src = url;
+    }
+  });
+
+  src.play();
+  src.addEventListener('play', function() {
+    mediaRecorder.start();
+  });
+  src.addEventListener('ended', function() {
+    done = true;
+    mediaRecorder.stop();
+  });
+}
+
+transcode();
+
+// dump script to pre element
+
+pre.innerHTML = myScript.innerHTML;
+  </script>
+</html>
