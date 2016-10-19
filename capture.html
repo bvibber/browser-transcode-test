@@ -46,16 +46,28 @@ var download = document.querySelector('.download');
 
 function transcode() {
   var stream;
+  var canvas, canvasDrawInterval;
 
   if (src.captureStreamUntilEnded) {
     stream = src.captureStreamUntilEnded();
+    console.log('video.captureStreamUntilEnded supported');
   } else if (src.mozCaptureStreamUntilEnded) {
     stream = src.mozCaptureStreamUntilEnded();
+    console.log('video.mozCaptureStreamUntilEnded supported');
   } else {
-    console.log('no captureStream or mozCaptureStreamUntilEnded support');
-    return;
+    //console.log('no captureStream or mozCaptureStreamUntilEnded support');
+    //return;
+    canvas = document.createElement('canvas');
+    canvas.width = src.videoWidth;
+    canvas.height = src.videoHeight;
+    canvas.style.height = '0px';
+    document.body.appendChild(canvas);
+    stream = canvas.captureStream(30);
+    canvasDrawInterval = setInterval(function() {
+      canvas.getContext('2d').drawImage(src, 0, 0);
+    }, 1000 / 30)
+    console.log('canvas.captureStream supported');
   }
-  console.log('captureStreamUntilEnded supported');
 
   var mediaRecorder = new MediaRecorder(stream, {
     mimeType: 'video/webm',
@@ -63,7 +75,7 @@ function transcode() {
   });
   var chunks = [], done = false;
   mediaRecorder.addEventListener('dataavailable', function(event) {
-    console.log('chunk!', event.data);
+    //console.log('chunk!', event.data);
     chunks.push(event.data);
 
     if (done) {
@@ -77,15 +89,22 @@ function transcode() {
 
   src.play();
   src.addEventListener('play', function() {
+    console.log('starting');
     mediaRecorder.start();
   });
   src.addEventListener('ended', function() {
+    console.log('ending');
     done = true;
     mediaRecorder.stop();
+    if (canvasDrawInterval) {
+      clearInterval(canvasDrawInterval);
+    }
   });
 }
 
-transcode();
+src.onloadeddata = function() {
+  transcode();
+};
 
 // dump script to pre element
 
