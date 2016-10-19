@@ -24,16 +24,16 @@
 
 // current issues:
 // * sometimes get an InvalidStateError
-// * on Firefox 45, the recording keeps changing resolutions;
-//   the result doesn't play in a video element!
-//   (on FF 47 it plays back ok)
-// * on Firefox 45 and 47 the result is very choppy;
+// * on Firefox 49 and 51 the result is very choppy;
 //   recording is nowhere near frame-accurate
-// * chrome lacks captureStream() support on video
-// * on Firefox 45, if we ask for vp9+opus we get vp8+Vorbis
-//   (on FF 47 asking for any codecs results in error!)
+// * chrome lacks captureStream() support on video;
+//   worked around with canvas + web audio capture.
+// * no Vorbis recording support?
 
 // define variables
+
+var AudioContext = window.AudioContext || window.webkitAudioContext;
+var MediaStream = window.MediaStream || window.webkitMediaStream;
 
 var pre = document.querySelector('pre');
 var myScript = document.querySelector('script');
@@ -46,7 +46,8 @@ var download = document.querySelector('.download');
 
 function transcode() {
   var stream;
-  var canvas, canvasDrawInterval;
+  var canvas = document.createElement('canvas');
+  var canvasDrawInterval;
 
   if (src.captureStreamUntilEnded) {
     stream = src.captureStreamUntilEnded();
@@ -54,19 +55,32 @@ function transcode() {
   } else if (src.mozCaptureStreamUntilEnded) {
     stream = src.mozCaptureStreamUntilEnded();
     console.log('video.mozCaptureStreamUntilEnded supported');
-  } else {
-    //console.log('no captureStream or mozCaptureStreamUntilEnded support');
-    //return;
-    canvas = document.createElement('canvas');
+  } else if (canvas.captureStream) {
     canvas.width = src.videoWidth;
     canvas.height = src.videoHeight;
+
+    // in Chrome the canvas must be in the document to record
     canvas.style.height = '0px';
     document.body.appendChild(canvas);
-    stream = canvas.captureStream(30);
+
+    // No way to force draw per frame, have to know the framerate.
     canvasDrawInterval = setInterval(function() {
       canvas.getContext('2d').drawImage(src, 0, 0);
     }, 1000 / 30)
+    var videoStream = canvas.captureStream(30);
+
+    // Create an audio capture stream to redirect audio into...
+    var audioContext = new AudioContext(),
+      audioSource = audioContext.createMediaElementSource(src),
+      audioDest = audioContext.createMediaStreamDestination(),
+      audioStream = audioDest.stream;
+    audioSource.connect(audioDest);
+
+    // Combine the video and audio tracks.
+    stream = new MediaStream(videoStream.getVideoTracks().concat(audioStream.getAudioTracks()));
     console.log('canvas.captureStream supported');
+  } else {
+    console.log('no video.captureStreamUntilEnded or canvas.captureStream');
   }
 
   var mediaRecorder = new MediaRecorder(stream, {
