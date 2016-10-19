@@ -11,7 +11,10 @@
     <h1>captureStream to MediaRecorder example</h1>
 
     <p>MP4 source (<a href="VID_20160402_215911.mp4" download>download source</a>):</p>
+    <p>or pick another file: <input type=file class=upload></p>
     <p><video class=src src="VID_20160402_215911.mp4" width=320 height=180></video></p>
+
+    <p><button class=transcode>Start transcode!</button>
 
     <p>Generated WebM (when ready; <a href="#" class=download download>download transcode</a>):</p>
     <p><video controls class=dst width=320 height=180></video></p>
@@ -40,11 +43,15 @@ var myScript = document.querySelector('script');
 var src = document.querySelector('.src');
 var dst = document.querySelector('.dst');
 var download = document.querySelector('.download');
+var upload = document.querySelector('.upload');
+var transcode = document.querySelector('.transcode');
 
 // Use captureStream on the src video, pipe it through a MediaRecorder,
 // then display the final blob into another video element.
 
-function transcode() {
+transcode.addEventListener('click', function() {
+  transcode.disabled = true;
+
   var stream;
   var canvas = document.createElement('canvas');
   var canvasDrawInterval;
@@ -98,6 +105,7 @@ function transcode() {
         url = URL.createObjectURL(blob);
       dst.src = url;
       download.href = url;
+      transcode.disabled = false;
     }
   });
 
@@ -114,11 +122,13 @@ function transcode() {
       clearInterval(canvasDrawInterval);
     }
   });
-}
+});
 
-src.onloadeddata = function() {
-  transcode();
-};
+upload.addEventListener('change', function() {
+  var blob = upload.files[0],
+    url = URL.createObjectURL(blob);
+  src.src = url;
+});
 
 // dump script to pre element
 
